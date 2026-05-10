@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NY Drinking">
+    <title>NY Drinking Management - Modern</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;600;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="apple-touch-icon" href="https://media.discordapp.net/attachments/947385944099684363/1502979410985488524/NY_icon.png?ex=6a01ae27&is=6a005ca7&hm=1d5000561ee25f4343a82f11eb976256c43663c6abf5eb700d98501f5a721a0e&=&format=webp&quality=lossless&width=676&height=676">
+    <style>
+        body { 
+            font-family: 'Anuphan', 'Inter', sans-serif; 
+            background-color: #f8fafc; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        .active-tab { color: #0043fc !important; position: relative; }
+        .active-tab::after {
+            content: ''; position: absolute; bottom: -8px; width: 4px; height: 4px;
+            background: #0043fc; border-radius: 50%;
+        }
+        .bill-canvas { width: 450px; background: white; padding: 40px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .ios-tab { color: #cbd5e1; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .product-card { 
+            transition: all 0.2s; 
+            border: 1px solid rgba(241, 245, 249, 0.8);
+        }
+        .product-card:active { transform: scale(0.96); opacity: 0.8; }
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
+        /* สไตล์พิเศษสำหรับช่องกรอกจำนวน */
+        .qty-input {
+            width: 45px;
+            text-align: center;
+            font-weight: bold;
+            background: transparent;
+            border-bottom: 2px solid #e2e8f0;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .qty-input:focus { border-color: #0043fc; }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <header class="bg-white/80 backdrop-blur-md px-6 pt-12 pb-4 shrink-0 flex justify-between items-end sticky top-0 z-30">
+        <div>
+            <h1 id="header-title" class="text-2xl font-bold text-slate-900 tracking-tight">น้ำดื่มเอ็นวาย</h1>
+            <p class="text-[10px] text-slate-400 font-semibold tracking-[0.1em] uppercase">NY Drinking Manage System</p>
+        </div>
+        <div class="bg-slate-900 p-2.5 rounded-2xl shadow-lg shadow-blue-100">
+            <i class="fa-solid fa-tint text-white text-sm"></i>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto no-scrollbar pb-32">
+        <section id="page-pos" class="p-4">
+            <div class="grid grid-cols-2 gap-4" id="mobile-product-grid"></div>
+        </section>
+
+        <section id="page-inventory" class="hidden p-4 space-y-5">
+            <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 space-y-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-1.5 h-6 bg-blue-500 rounded-full"></div>
+                    <h3 class="font-bold text-slate-800">เพิ่มสินค้าใหม่</h3>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="relative group">
+                        <input type="text" id="in-image-url" placeholder="วาง URL รูปภาพสินค้า" 
+                               class="w-full border-2 border-slate-50 p-4 rounded-2xl bg-slate-50 outline-none focus:border-blue-100 transition-all text-sm"
+                               oninput="previewFromUrl(this.value)">
+                    </div>
+                    <div id="url-preview-container" class="hidden w-full h-44 rounded-2xl overflow-hidden border border-slate-100 relative">
+                        <img id="preview-image" class="w-full h-full object-cover">
+                        <button onclick="clearImageUrl()" class="absolute top-2 right-2 bg-black/50 text-white w-8 h-8 rounded-full text-xs">✕</button>
+                    </div>
+                </div>
+
+                <input type="text" id="in-name" placeholder="ชื่อสินค้า" class="w-full border-2 border-slate-50 p-4 rounded-2xl bg-slate-50 outline-none focus:border-blue-100 transition-all">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="in-size" placeholder="ขนาด (เช่น 600ml)" class="border-2 border-slate-50 p-4 rounded-2xl bg-slate-50 outline-none focus:border-blue-100 transition-all">
+                    <input type="text" id="in-unit" placeholder="หน่วย (เช่น แพ็ค)" class="border-2 border-slate-50 p-4 rounded-2xl bg-slate-50 outline-none focus:border-blue-100 transition-all">
+                </div>
+                <input type="number" id="in-price" placeholder="ราคาสินค้า" class="w-full border-2 border-slate-50 p-4 rounded-2xl bg-slate-50 outline-none focus:border-blue-100 transition-all font-bold text-blue-600">
+                <button onclick="saveProduct()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-xl active:scale-[0.98] transition-transform">บันทึกข้อมูลสินค้า</button>
+            </div>
+            <div id="inventory-list" class="space-y-3"></div>
+        </section>
+
+        <section id="page-settings" class="hidden p-4 space-y-4">
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50 space-y-5">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-blue-500"></i> ตั้งค่าร้านค้า
+                </h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">ชื่อร้านค้า</label>
+                        <input type="text" id="shop-name" class="w-full border-b-2 border-slate-100 py-3 outline-none font-bold text-lg focus:border-blue-500 transition-all" value="น้ำดื่ม NY">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">ที่อยู่ติดต่อ</label>
+                        <textarea id="shop-address" class="w-full border-2 border-slate-50 rounded-2xl p-4 text-sm h-28 mt-1 focus:border-blue-100 outline-none bg-slate-50/50">63 ถ.ราษฎร์อุทิศ 2 ซ.5 ต.บ่อยาง อ.เมือง จ.สงขลา 90000</textarea>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">โทนสีบิล</label>
+                        <input type="color" id="theme-color" value="#000000" class="w-full h-12 border-0 rounded-xl mt-1 cursor-pointer bg-transparent">
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-50 grid grid-cols-5 items-center px-2 pt-4 pb-10 safe-area-bottom z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
+        <button onclick="switchTab('pos')" id="tab-pos" class="ios-tab active-tab flex flex-col items-center gap-1.5">
+            <i class="fa-solid fa-house-chimney text-lg"></i>
+            <span class="text-[10px] font-bold tracking-wide">น้ำดื่มเอ็นวาย</span>
+        </button>
+        <button onclick="switchTab('inventory')" id="tab-inventory" class="ios-tab flex flex-col items-center gap-1.5">
+            <i class="fa-solid fa-cubes-stacked text-lg"></i>
+            <span class="text-[10px] font-bold tracking-wide">สต็อก</span>
+        </button>
+        <div class="flex flex-col items-center justify-center relative -mt-14">
+            <button onclick="toggleCart(true)" class="bg-blue-600 text-white w-16 h-16 rounded-[2rem] shadow-2xl shadow-blue-200 flex items-center justify-center border-4 border-white active:scale-90 transition-all">
+                <i class="fa-solid fa-receipt text-xl"></i>
+                <span id="cart-count" class="absolute -top-1 -right-1 bg-rose-500 text-[10px] min-w-[22px] h-[22px] px-1 rounded-full flex items-center justify-center font-bold border-2 border-white shadow-sm">0</span>
+            </button>
+            <span class="text-[10px] font-bold mt-2 text-slate-400">บิล</span>
+        </div>
+        <button onclick="switchTab('settings')" id="tab-settings" class="ios-tab flex flex-col items-center gap-1.5">
+            <i class="fa-solid fa-user-gear text-lg"></i>
+            <span class="text-[10px] font-bold tracking-wide">ตั้งค่า</span>
+        </button>
+        <button class="ios-tab flex flex-col items-center gap-1.5 opacity-30">
+            <i class="fa-solid fa-water text-lg"></i>
+            <span class="text-[10px] font-bold tracking-wide">Soon</span>
+        </button>
+    </nav>
+
+    <div id="cart-sheet" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex-end items-end transition-all">
+        <div class="bg-white w-full rounded-t-[3rem] p-8 max-h-[85vh] flex flex-col shadow-2xl">
+            <div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-8"></div>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-slate-800 tracking-tight">รายการสั่งซื้อ</h2>
+                <button onclick="toggleCart(false)" class="bg-slate-50 text-slate-400 w-10 h-10 rounded-full flex items-center justify-center font-light text-2xl">&times;</button>
+            </div>
+            <input type="text" id="customer-name" placeholder="ชื่อลูกค้า (ระบุหรือไม่ก็ได้)" class="w-full border-2 border-slate-50 p-4 rounded-2xl mb-6 outline-none bg-slate-50/50 focus:border-blue-100 transition-all">
+            <div id="cart-items" class="flex-1 overflow-y-auto space-y-4 no-scrollbar border-t border-slate-50 py-6"></div>
+            <div class="pt-6 space-y-4">
+                <div class="flex justify-between items-end px-2">
+                    <span class="text-slate-400 font-bold text-xs uppercase tracking-widest">Total Amount</span>
+                    <span class="text-3xl font-black text-slate-900"><span id="cart-total">0.00</span> <small class="text-sm font-bold text-slate-400">THB</small></span>
+                </div>
+                <button onclick="generateImage()" class="w-full bg-green-600 text-white py-5 rounded-[1.5rem] font-bold text-lg shadow-xl shadow-blue-100 active:scale-[0.98] transition-all">ยืนยันและสร้างบิล</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BILL SOURCE (HIDDEN) -->
+    <div style="position: absolute; top: -9999px;">
+        <div id="billSource" class="bill-canvas" style="font-family: 'Anuphan', sans-serif;">
+            <div class="flex justify-between items-start mb-8">
+                <div class="flex gap-5">
+                    <img src="https://media.discordapp.net/attachments/947385944099684363/1502717123569516656/NY.png?ex=6a0162a1&is=6a001121&hm=a1ff3a47946f20d6d9504dea9140ddcbe1f5d422ea349e99ee17eccad9ca05fd&=&format=webp&quality=lossless&width=676&height=676" class="w-16 h-16 object-contain rounded-2xl">
+                    <div>
+                        <h2 id="v-shop-name" class="text-2xl font-bold text-slate-900">น้ำดื่มเอ็นวาย</h2>
+                        <p id="v-shop-addr" class="text-[10px] text-slate-400 whitespace-pre-line mt-1 leading-relaxed max-w-[200px]"></p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <h1 class="text-2xl font-black text-slate-100 leading-none mb-4">CASH BILL</h1>
+                    <p class="text-[10px] font-bold text-slate-800">No: <span id="v-bill-id" class="text-black-600"></span></p>
+                    <p class="text-[10px] font-bold text-slate-400">Date: <span id="v-bill-date" class="text-slate-800"></span></p>
+                </div>
+            </div>
+
+            <div class="mb-8 p-4 bg-slate-50 rounded-2xl flex justify-between items-center">
+                <div>
+                    <p class="text-[9px] uppercase font-bold text-slate-400 mb-1">Customer</p>
+                    <p id="v-customer-name" class="text-sm font-bold text-slate-800"></p>
+                </div>
+                <div class="text-right"></div>
+            </div>
+
+            <table class="w-full mb-10">
+                <thead>
+                    <tr id="billHeader" class="bg-indigo-600 text-white">
+                        <th class="py-4 px-5 text-left rounded-l-2xl text-xs uppercase tracking-widest font-bold">Items</th>
+                        <th class="py-4 text-center text-xs uppercase tracking-widest font-bold">Qty</th>
+                        <th class="py-4 px-5 text-right rounded-r-2xl text-xs uppercase tracking-widest font-bold">Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="billBody" class="text-slate-700"></tbody>
+            </table>
+
+            <div class="flex justify-between items-center border-t border-slate-100 pt-8">
+                <div class="text-center">
+                    <p class="text-[8px] font-bold text-slate-300 mb-2 uppercase tracking-[0.2em]">PromptPay Scan</p>
+                    <img src="https://media.discordapp.net/attachments/947385944099684363/1502716991109070979/sdadadwdw.png?ex=6a016281&is=6a001101&hm=f51008c1dc8d36954ce43d04692e83681bfa16c6773af47bdaf86b1af002d37a&=&format=webp&quality=lossless&width=676&height=676" class="w-32 h-32 p-1 border border-slate-50 rounded-xl">
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Payable</p>
+                    <p class="text-4xl font-black text-black-600"><span id="v-bill-total">0.00</span></p>
+                    <p class="text-[10px] font-bold text-slate-400 mt-1">Thai Baht</p>
+                </div>
+            </div>
+            <div class="mt-12 text-center">
+                <p class="text-[12px] text-black-300 font-medium">" น้ำดื่มเอ็นวาย ขอขอบคุณทุกคำสั่งซื้อครับ "</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stock = JSON.parse(localStorage.getItem('ny_modern_stock')) || [];
+        let cart = [];
+
+        function switchTab(tab) {
+            ['pos', 'inventory', 'settings'].forEach(t => {
+                document.getElementById(`page-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).classList.remove('active-tab');
+            });
+            document.getElementById(`page-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('active-tab');
+            
+            const titles = {pos:'น้ำดื่มเอ็นวาย', inventory:'สต็อกสินค้า', settings:'ตั้งค่า'};
+            document.getElementById('header-title').innerText = titles[tab];
+            
+            if(tab === 'pos') renderPOS();
+            if(tab === 'inventory') renderInventory();
+        }
+
+        function previewFromUrl(url) {
+            const container = document.getElementById('url-preview-container');
+            const img = document.getElementById('preview-image');
+            if (url && url.length > 10) {
+                img.src = url;
+                container.classList.remove('hidden');
+                img.onerror = () => container.classList.add('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        function clearImageUrl() {
+            document.getElementById('in-image-url').value = '';
+            document.getElementById('url-preview-container').classList.add('hidden');
+        }
+
+        function saveProduct() {
+            const name = document.getElementById('in-name').value;
+            const price = document.getElementById('in-price').value;
+            const imageUrl = document.getElementById('in-image-url').value;
+            if(!name || !price) return alert('กรุณากรอกชื่อและราคาสินค้า');
+            
+            stock.push({ 
+                id: Date.now(), 
+                name, 
+                size: document.getElementById('in-size').value, 
+                unit: document.getElementById('in-unit').value, 
+                price: parseFloat(price), 
+                image: imageUrl || "https://images.unsplash.com/photo-1548919973-5cdf5916ad52?q=80&w=250&auto=format&fit=crop" 
+            });
+            localStorage.setItem('ny_modern_stock', JSON.stringify(stock));
+            ['in-name', 'in-size', 'in-unit', 'in-price', 'in-image-url'].forEach(i => document.getElementById(i).value = '');
+            document.getElementById('url-preview-container').classList.add('hidden');
+            renderInventory();
+            alert('เพิ่มสินค้าเรียบร้อยแล้ว');
+        }
+
+        function renderInventory() {
+            const list = document.getElementById('inventory-list');
+            list.innerHTML = stock.map(s => `
+                <div class="bg-white p-4 rounded-[1.5rem] flex items-center gap-4 shadow-sm border border-slate-50">
+                    <img src="${s.image}" class="w-14 h-14 rounded-2xl object-cover bg-slate-50">
+                    <div class="flex-1">
+                        <p class="font-bold text-slate-800 text-sm">${s.name}</p>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${s.price}.- / ${s.unit} ${s.size ? '('+s.size+')' : ''}</p>
+                    </div>
+                    <button onclick="deleteProduct(${s.id})" class="w-10 h-10 flex items-center justify-center text-rose-400 bg-rose-50 rounded-xl active:bg-rose-100">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function deleteProduct(id) {
+            if(confirm('ต้องการลบสินค้านี้ใช่หรือไม่?')) {
+                stock = stock.filter(s => s.id !== id);
+                localStorage.setItem('ny_modern_stock', JSON.stringify(stock));
+                renderInventory();
+            }
+        }
+
+        function renderPOS() {
+            const grid = document.getElementById('mobile-product-grid');
+            if(stock.length === 0) {
+                grid.innerHTML = `<div class="col-span-2 text-center py-24 text-slate-300 font-bold">ยังไม่มีสินค้าในสต็อก</div>`;
+            } else {
+                grid.innerHTML = stock.map(s => `
+                    <div onclick="addToCart(${s.id})" class="product-card bg-white rounded-[2rem] shadow-sm flex flex-col overflow-hidden h-56">
+                        <div class="h-32 bg-slate-50 overflow-hidden">
+                            <img src="${s.image}" class="w-full h-full object-cover">
+                        </div>
+                        <div class="p-4 flex-1 flex flex-col justify-between">
+                            <div class="text-xs font-bold text-slate-800 line-clamp-1">${s.name}</div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">${s.size || '-'}</span>
+                                <div class="text-indigo-600 font-black text-base">${s.price}.-</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function addToCart(id) {
+            const item = stock.find(s => s.id === id);
+            const inCart = cart.find(c => c.id === id);
+            if(inCart) inCart.qty++;
+            else cart.push({...item, qty: 1});
+            updateCartUI();
+        }
+
+        // ฟังก์ชันอัปเดตเมื่อมีการพิมพ์จำนวนเอง
+        function updateQtyInput(index, val) {
+            let newVal = parseInt(val);
+            if (isNaN(newVal) || newVal < 0) newVal = 0;
+            
+            if (newVal === 0) {
+                cart.splice(index, 1);
+            } else {
+                cart[index].qty = newVal;
+            }
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const list = document.getElementById('cart-items');
+            let total = 0, count = 0;
+            list.innerHTML = cart.map((c, i) => {
+                total += (c.qty * c.price);
+                count += c.qty;
+                return `
+                    <div class="flex items-center justify-between bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
+                        <div class="flex items-center gap-3 flex-1">
+                            <img src="${c.image}" class="w-10 h-10 rounded-xl object-cover shadow-sm bg-white">
+                            <div class="truncate">
+                                <p class="text-xs font-bold text-slate-800 truncate">${c.name}</p>
+                                <p class="text-[10px] text-indigo-500 font-bold mt-0.5">${c.price.toLocaleString()} THB</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 ml-4">
+                            <button onclick="qty(${i}, -1)" class="w-8 h-8 bg-white border border-slate-100 rounded-full shadow-sm flex items-center justify-center font-bold text-slate-400 text-sm">-</button>
+                            <input type="number" 
+                                   value="${c.qty}" 
+                                   onchange="updateQtyInput(${i}, this.value)"
+                                   class="qty-input text-slate-800"
+                                   inputmode="numeric">
+                            <button onclick="qty(${i}, 1)" class="w-8 h-8 bg-indigo-600 rounded-full shadow-md shadow-indigo-100 flex items-center justify-center font-bold text-white text-sm">+</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('cart-total').innerText = total.toLocaleString(undefined, {minimumFractionDigits: 2});
+            document.getElementById('cart-count').innerText = count;
+        }
+
+        function qty(i, d) {
+            cart[i].qty += d;
+            if(cart[i].qty <= 0) cart.splice(i, 1);
+            updateCartUI();
+        }
+
+        function toggleCart(show) {
+            const sheet = document.getElementById('cart-sheet');
+            if (show) {
+                sheet.classList.remove('hidden');
+                sheet.classList.add('flex');
+            } else {
+                sheet.classList.add('hidden');
+                sheet.classList.remove('flex');
+            }
+        }
+
+        async function generateImage() {
+            if(cart.length === 0) return alert('เลือกสินค้าก่อนสร้างบิลนะครับ');
+            
+            document.getElementById('v-shop-name').innerText = document.getElementById('shop-name').value;
+            document.getElementById('v-shop-addr').innerText = document.getElementById('shop-address').value;
+            document.getElementById('v-bill-date').innerText = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+            document.getElementById('v-bill-id').innerText = '#' + Date.now().toString().slice(-6);
+            document.getElementById('billHeader').style.backgroundColor = document.getElementById('theme-color').value;
+            
+            const custInput = document.getElementById('customer-name').value;
+            document.getElementById('v-customer-name').innerText = custInput || 'คุณลูกค้า (General Customer)';
+            
+            const tbody = document.getElementById('billBody');
+            let total = 0;
+            tbody.innerHTML = cart.map(c => {
+                const sub = c.qty * c.price;
+                total += sub;
+                return `
+                    <tr class="border-b border-slate-50">
+                        <td class="py-5 px-5">
+                            <div class="font-bold text-slate-800 text-sm">${c.name}</div>
+                            <div class="text-[9px] text-slate-400 font-bold uppercase mt-1">${c.price.toLocaleString()} / ${c.unit}</div>
+                        </td>
+                        <td class="text-center font-bold text-sm text-slate-600">${c.qty}</td>
+                        <td class="text-right px-5 font-black text-slate-900">${sub.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            document.getElementById('v-bill-total').innerText = total.toLocaleString(undefined, {minimumFractionDigits: 2});
+            
+            const canvas = await html2canvas(document.getElementById('billSource'), { 
+                scale: 3, 
+                useCORS: true,
+                backgroundColor: "#ffffff"
+            });
+            
+            const link = document.createElement('a');
+            link.download = `Bill-NY-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            
+            document.getElementById('customer-name').value = '';
+            cart = [];
+            updateCartUI();
+            toggleCart(false);
+        }
+
+        renderPOS();
+    </script>
+</body>
+</html>
